@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "three": "^0.182.0",
+    "@dimforge/rapier3d": "0.19.3"
+  }
+}
