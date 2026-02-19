@@ -12,8 +12,8 @@ const mousePos = new THREE.Vector3(0, 0, 0);
 
 
 
-
-
+//notes
+//https://github.com/bobbyroe/physics-with-rapier-and-three/blob/variations/index.js
 
 
 
