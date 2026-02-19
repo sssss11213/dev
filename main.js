@@ -67,11 +67,11 @@ function create_cube(mousePos) {
   let { x, y, z } = rigid.translation();
   let pos = new THREE.Vector3(x, y, z);
   //let dir = pos.clone().sub(new THREE.Vector3(0,5,0)).normalize();
-  let dir = pos.clone().sub(new THREE.Vector3(mousePos.x, mousePos.y, 0)).normalize();
+  let dir = pos.clone().sub(new THREE.Vector3(mousePos.x, mousePos.y, mousePos.z)).normalize();
   let q = rigid.rotation();
   let rote = new THREE.Quaternion(q.x, q.y, q.z, q.w);
   cube.rotation.setFromQuaternion(rote);
-  rigid.addForce(dir.multiplyScalar(-5), true);
+  rigid.addForce(dir.multiplyScalar(-0.5), true);
   cube.position.set(x, y, z);
   }
   return update;
@@ -121,11 +121,12 @@ document.addEventListener('mousemove', (e) => {
   }
 })
 
-const mousePlaneGeo = new THREE.PlaneGeometry(48, 48, 48, 48);
+//const mousePlaneGeo = new THREE.PlaneGeometry(48, 48, 48, 48);
+const mousePlaneGeo = new THREE.PlaneGeometry(48, 48, 1,1);
 const mousePlaneMat = new THREE.MeshBasicMaterial({
   wireframe: true,
   color: 0x00ff00,
-  transparent: true,
+  transparent: false,
   opacity: 0.0
 });
 
@@ -138,7 +139,7 @@ function handleRaycast() {
   // orient the mouse plane to the camera
   camera.getWorldDirection(cameraDirection);
   cameraDirection.multiplyScalar(-1);
-  mousePlane.lookAt(cameraDirection);
+  //mousePlane.lookAt(cameraDirection);
 
   raycaster.setFromCamera(pointerPos, camera);
   const intersects = raycaster.intersectObjects(
@@ -147,6 +148,7 @@ function handleRaycast() {
   );
   if (intersects.length > 0) {
     mousePos.copy(intersects[0].point);
+    //mousePlane.position.set(intersects[0].point.x, intersects[0].point.y, 0.2);
   }
 }
 
