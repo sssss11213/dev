@@ -4,16 +4,29 @@ import { scene, renderer } from './src/render';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import world from './src/physics';
 import { RAPIER } from './src/physics';
+import { element } from 'three/tsl';
+import { get_player } from './src/player';
+//import { colliderDesc } from 'src/player';
 
 // some vars
 const raycaster = new THREE.Raycaster();
 const pointerPos = new THREE.Vector2(0, 0);
-const mousePos = new THREE.Vector3(0, 0, 0);
+const mousePos = new THREE.Vector3(0, 0, 0);  
+const loader = new THREE.TextureLoader();
+
+const clock = new THREE.Clock(true)
 
 // Dev material
+const texture = loader.load( 'textures/grid.png' );
+texture.colorSpace = THREE.SRGBColorSpace;
+texture.anisotropy = 16
+texture.RepeatWrapping
+texture.repeat = new THREE.Vector2(1,1)
+
 const dev_material = new THREE.MeshPhongMaterial({
-  color: 0xFF0000,    // red (can also use a CSS color string here)
+  //color: 0xFF0000,    // red (can also use a CSS color string here)
   flatShading: true,
+  map: texture,
 });
 
 
@@ -85,7 +98,7 @@ function create_cube(mousePos) {
 //Make static collider
 function create_static_cube(x, y, z) {
 
-  const geometry = new THREE.BoxGeometry(50,1,50)
+  const geometry = new THREE.BoxGeometry(100,1,100)
 
   const cube = new THREE.Mesh( geometry, dev_material );
   cube.position.set(x, y, z);
@@ -110,7 +123,7 @@ const rigid = floorAndRigid[1];
 //rigid.rotation.x = -Math.PI / 2;
 
 // make 10 cubes
-for (let i = 0; i < 35; i++) {
+for (let i = 0; i < 125; i++) {
 let new_cube = create_cube();
 phys_ents.push(new_cube);
 }
@@ -152,6 +165,28 @@ document.addEventListener('mousemove', (e) => {
   }
 })
 
+let down_keys = []
+
+document.addEventListener('keypress', (e) =>{
+  //THREE.log('down ' + e.key)
+
+  const found = down_keys.find(element => element == e.key)
+
+  if (!found){
+    down_keys.push(e.key)
+    THREE.log(down_keys)
+  }
+})
+
+document.addEventListener('keyup', (e) =>{
+  //THREE.log('up' + e.key)
+  for (var i = 0; i < down_keys.length; i++) {
+    if (down_keys[i] == e.key){
+      down_keys.splice(down_keys[i], 1)
+    }
+  }
+})
+
 //const mousePlaneGeo = new THREE.PlaneGeometry(48, 48, 48, 48);
 const mousePlaneGeo = new THREE.PlaneGeometry(48, 48, 1,1);
 const mousePlaneMat = new THREE.MeshBasicMaterial({
@@ -161,9 +196,9 @@ const mousePlaneMat = new THREE.MeshBasicMaterial({
   opacity: 0.0
 });
 
-const mousePlane = new THREE.Mesh(mousePlaneGeo, mousePlaneMat);
-mousePlane.position.set(0, 0, 0.2);
-scene.add(mousePlane);
+//const mousePlane = new THREE.Mesh(mousePlaneGeo, mousePlaneMat);
+//mousePlane.position.set(0, 0, 0.2);
+//scene.add(mousePlane);
 
 let cameraDirection = new THREE.Vector3();
 function handleRaycast() {
@@ -180,9 +215,60 @@ function handleRaycast() {
   );
   if (intersects.length > 0) {
     mousePos.copy(intersects[0].point);
-    mousePlane.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
+    //mousePlane.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
   }
 }
+
+
+
+//Player controller
+
+const cam_offset = new THREE.Vector3(0,5,0)
+
+function create_player(x,y,z) {
+
+  const geometry = new THREE.CapsuleGeometry(1,2,16,16,1)
+  const capsule = new THREE.Mesh( geometry, material );
+  scene.add( capsule );
+
+  let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
+    .setTranslation(x, y, z)
+    // .setLinearDamping(1)
+    // .setAngularDamping(1);
+  let rigid = world.createRigidBody(rigidBodyDesc);
+
+  let points = geometry.attributes.position.array;
+  let colliderDesc = RAPIER.ColliderDesc.convexHull(points).setDensity(density);
+
+  colliderDesc.setFriction(0.1)
+  colliderDesc.setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
+  world.createCollider(colliderDesc, rigid);
+
+
+  function update(mousePos) {
+    rigid.resetForces(true);
+    let { x, y, z } = rigid.translation();
+    let pos = new THREE.Vector3(x, y, z);
+    //let dir = pos.clone().sub(new THREE.Vector3(0,5,0)).normalize();
+    //let dir = pos.clone().sub(new THREE.Vector3(mousePos.x, mousePos.y, mousePos.z)).normalize();
+    let q = rigid.rotation();
+
+    //Keep upright  
+    let rote = new THREE.Quaternion(180, q.y, q.z, q.w);
+
+    capsule.rotation.setFromQuaternion(rote);
+
+    capsule.position.set(x, y, z);
+    camera.position.set(x + cam_offset.x,y + cam_offset.y,z + cam_offset.z)
+  }
+  return update;
+}
+
+//const update_player = create_player(0,5,0)
+
+
+const player = get_player();
+
 
 //Update main game loop
 function animate() {
@@ -192,12 +278,16 @@ function animate() {
 
   world.step();
   handleRaycast();
+  //player();
+  //camera.position.set()
 
   //Loop thru phys ents and update them
   var arrayLength = phys_ents.length;
   for (var i = 0; i < arrayLength; i++) {
     phys_ents[i](mousePos);
   }
+
+  //THREE.log(clock.getDelta())
 
   renderer.render( scene, camera );
 }
