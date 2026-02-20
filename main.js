@@ -5,8 +5,8 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import world from './src/physics';
 import { RAPIER } from './src/physics';
 import { element } from 'three/tsl';
-import { get_player } from './src/player';
-//import { colliderDesc } from 'src/player';
+import { updatePlayer } from './src/player';
+//import { impulse } from './src/player';
 
 // some vars
 const raycaster = new THREE.Raycaster();
@@ -108,7 +108,8 @@ function create_static_cube(x, y, z) {
     .setTranslation(x, y, z);
   let rigid = world.createRigidBody(rigidBodyDesc);
   let points = geometry.attributes.position.array;
-  let colliderDesc = RAPIER.ColliderDesc.convexHull(points).setDensity(density);
+  let colliderDesc = RAPIER.ColliderDesc.convexHull(points).setDensity(density)
+    .setFriction(0.0);
   world.createCollider(colliderDesc, rigid);
 
   return [cube, rigid];
@@ -123,7 +124,7 @@ const rigid = floorAndRigid[1];
 //rigid.rotation.x = -Math.PI / 2;
 
 // make 10 cubes
-for (let i = 0; i < 125; i++) {
+for (let i = 0; i < 25; i++) {
 let new_cube = create_cube();
 phys_ents.push(new_cube);
 }
@@ -220,66 +221,14 @@ function handleRaycast() {
 }
 
 
-
-//Player controller
-
-const cam_offset = new THREE.Vector3(0,5,0)
-
-function create_player(x,y,z) {
-
-  const geometry = new THREE.CapsuleGeometry(1,2,16,16,1)
-  const capsule = new THREE.Mesh( geometry, material );
-  scene.add( capsule );
-
-  let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
-    .setTranslation(x, y, z)
-    // .setLinearDamping(1)
-    // .setAngularDamping(1);
-  let rigid = world.createRigidBody(rigidBodyDesc);
-
-  let points = geometry.attributes.position.array;
-  let colliderDesc = RAPIER.ColliderDesc.convexHull(points).setDensity(density);
-
-  colliderDesc.setFriction(0.1)
-  colliderDesc.setFrictionCombineRule(RAPIER.CoefficientCombineRule.Min)
-  world.createCollider(colliderDesc, rigid);
-
-
-  function update(mousePos) {
-    rigid.resetForces(true);
-    let { x, y, z } = rigid.translation();
-    let pos = new THREE.Vector3(x, y, z);
-    //let dir = pos.clone().sub(new THREE.Vector3(0,5,0)).normalize();
-    //let dir = pos.clone().sub(new THREE.Vector3(mousePos.x, mousePos.y, mousePos.z)).normalize();
-    let q = rigid.rotation();
-
-    //Keep upright  
-    let rote = new THREE.Quaternion(180, q.y, q.z, q.w);
-
-    capsule.rotation.setFromQuaternion(rote);
-
-    capsule.position.set(x, y, z);
-    camera.position.set(x + cam_offset.x,y + cam_offset.y,z + cam_offset.z)
-  }
-  return update;
-}
-
-//const update_player = create_player(0,5,0)
-
-
-const player = get_player();
-
-
 //Update main game loop
 function animate() {
 
-  //cube.rotation.x += 0.01;
-  //cube.rotation.y += 0.01;
-
   world.step();
   handleRaycast();
-  //player();
-  //camera.position.set()
+
+  //Update player physics
+  updatePlayer(clock.getDelta());
 
   //Loop thru phys ents and update them
   var arrayLength = phys_ents.length;
