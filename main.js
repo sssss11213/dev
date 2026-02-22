@@ -6,7 +6,8 @@ import world from './src/physics';
 import { RAPIER } from './src/physics';
 import { element } from 'three/tsl';
 import { updatePlayer } from './src/player';
-//import { impulse } from './src/player';
+import { heldEnt } from './src/player';
+//import { QuakeMapParser } from './src/quakemapparser';
 
 // some vars
 const raycaster = new THREE.Raycaster();
@@ -69,27 +70,58 @@ function create_cube(mousePos) {
   let z = Math.random() * range - range * 0.5;
 
   const cube = new THREE.Mesh( geometry, material );
+  cube.name = "phys_ent" + cube.id;
   scene.add( cube );
 
   let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
     .setTranslation(x, y, z)
-    // .setLinearDamping(1)
-    // .setAngularDamping(1);
+    //.setLinearDamping(5)
+    //.setAngularDamping(5);
   let rigid = world.createRigidBody(rigidBodyDesc);
   let points = geometry.attributes.position.array;
   let colliderDesc = RAPIER.ColliderDesc.convexHull(points).setDensity(density);
-  world.createCollider(colliderDesc, rigid);
+  world.createCollider(colliderDesc, rigid)
+    .setFriction(1.5);
   
   function update(mousePos) {
+    const name = cube.name;
     rigid.resetForces(true);
     let { x, y, z } = rigid.translation();
     let pos = new THREE.Vector3(x, y, z);
-    //let dir = pos.clone().sub(new THREE.Vector3(0,5,0)).normalize();
-    let dir = pos.clone().sub(new THREE.Vector3(mousePos.x, mousePos.y, mousePos.z)).normalize();
+
+    //let dir = pos.clone().sub(new THREE.Vector3(mousePos.x, mousePos.y, mousePos.z)).normalize();
+
+    THREE.log(heldEnt + name);
+
+    if (heldEnt != null && heldEnt.name == name) {
+      const direction = new THREE.Vector3()
+      camera.getWorldDirection(direction)
+
+      const targetPos = new THREE.Vector3()
+        .copy(camera.position)
+        .addScaledVector(direction, 3)
+
+
+      const currentPos = new THREE.Vector3().copy(new THREE.Vector3(rigid.translation().x, rigid.translation().y, rigid.translation().z).sub(new THREE.Vector3(0.5, 0.5, 0.5)));
+
+      const toTarget = targetPos.clone().sub(currentPos)
+
+      let distance = currentPos.distanceTo(targetPos)
+
+      const force = toTarget.multiplyScalar(distance * 15)
+      rigid.addForce(force, true);
+      rigid.setLinearDamping(3);
+      rigid.setAngularDamping(3);
+      } else {
+      rigid.setLinearDamping(0.0);
+      rigid.setAngularDamping(0.0);
+    }
+
+
     let q = rigid.rotation();
     let rote = new THREE.Quaternion(q.x, q.y, q.z, q.w);
     cube.rotation.setFromQuaternion(rote);
-    rigid.addForce(dir.multiplyScalar(-5), true);
+    //rigid.addForce(dir.multiplyScalar(-5), true);
     cube.position.set(x, y, z);
   }
   return update;
@@ -124,7 +156,7 @@ const rigid = floorAndRigid[1];
 //rigid.rotation.x = -Math.PI / 2;
 
 // make 10 cubes
-for (let i = 0; i < 25; i++) {
+for (let i = 0; i < 1; i++) {
 let new_cube = create_cube();
 phys_ents.push(new_cube);
 }

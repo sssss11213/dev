@@ -43,8 +43,43 @@ const keys = {
   backward: false,
   left: false,
   right: false,
-  jump: false
+  jump: false,
+  use: false
 };
+
+
+// Interacting with phys ents
+
+const raycaster = new THREE.Raycaster();
+let cameraDirection = new THREE.Vector3();
+const pointerPos = new THREE.Vector2(0, 0);
+let heldEnt = null;
+
+function create_raycast() {
+  camera.getWorldDirection(cameraDirection);
+  cameraDirection.multiplyScalar(-1);
+
+  raycaster.setFromCamera(pointerPos, camera);
+  const intersects = raycaster.intersectObjects(scene.children, true);
+
+
+
+  if (intersects.length > 0) {
+    THREE.log(intersects[0].object.name);
+
+    if (scene.getObjectByName(intersects[0].object.name) == heldEnt){
+      heldEnt = null;
+    } else {
+
+    heldEnt = scene.getObjectByName(intersects[0].object.name);
+
+    // Make a new material since the original one is shared between all cubes
+    heldEnt.material = new THREE.MeshStandardMaterial({ color: 0x00ff00, wireframe: false, transparent: true });
+    heldEnt.material.color.set(new THREE.Color(Math.random(), Math.random(), Math.random()));
+    }
+  }
+}
+
 
 window.addEventListener('keydown', e => {
   e.preventDefault();
@@ -54,6 +89,9 @@ window.addEventListener('keydown', e => {
     case 'KeyA': case 'ArrowLeft':  keys.left     = true; break;
     case 'KeyD': case 'ArrowRight': keys.right    = true; break;
     case 'Space':                   keys.jump     = true; break;
+    case 'KeyE':                   keys.use     = true; 
+    create_raycast();
+    break;
   }
 });
 
@@ -64,6 +102,7 @@ window.addEventListener('keyup', e => {
     case 'KeyA': case 'ArrowLeft':  keys.left     = false; break;
     case 'KeyD': case 'ArrowRight': keys.right    = false; break;
     case 'Space':                   keys.jump     = false; break;
+    case 'KeyE':                   keys.use     = false; break;
   }
 });
 
@@ -134,3 +173,5 @@ export function updatePlayer(deltaTime) {
   capsuleMesh.position.set(pos.x, pos.y, pos.z);
   camera.position.set(pos.x, pos.y + halfHeight + radius, pos.z);
 }
+
+export { heldEnt };
