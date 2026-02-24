@@ -1,6 +1,9 @@
 {
   "dependencies": {
-    "three": "^0.182.0",
-    "@dimforge/rapier3d": "0.19.3"
+    "@dimforge/rapier3d": "0.19.3",
+    "three": "^0.182.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.1.4"
   }
 }

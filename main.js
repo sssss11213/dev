@@ -34,7 +34,7 @@ const dev_material = new THREE.MeshPhongMaterial({
 //notes
 //https://github.com/bobbyroe/physics-with-rapier-and-three/blob/variations/index.js
 
-
+//npm add -D @vitejs/plugin-basic-ssl
 
 
 
@@ -91,7 +91,7 @@ function create_cube(mousePos) {
 
     //let dir = pos.clone().sub(new THREE.Vector3(mousePos.x, mousePos.y, mousePos.z)).normalize();
 
-    THREE.log(heldEnt + name);
+    //THREE.log(heldEnt + name);
 
     if (heldEnt != null && heldEnt.name == name) {
       const direction = new THREE.Vector3()
@@ -156,7 +156,7 @@ const rigid = floorAndRigid[1];
 //rigid.rotation.x = -Math.PI / 2;
 
 // make 10 cubes
-for (let i = 0; i < 1; i++) {
+for (let i = 0; i < 10; i++) {
 let new_cube = create_cube();
 phys_ents.push(new_cube);
 }
@@ -165,16 +165,16 @@ phys_ents.push(new_cube);
 // Add directional and ambiuent light
 function add_ambient_light() {
   const color = 0xFFFFFF;
-  const intensity = 1;
+  const intensity = 5;
   const light = new THREE.DirectionalLight(color, intensity);
-  light.position.set(0, 10, 0);
+  light.position.set(0, 20, 0);
   light.target.position.set(-5, 0, 0);
   scene.add(light);
   scene.add(light.target);
 }
 
 const color = 0xFFFFFF;
-const intensity = 0.5;
+const intensity = 1.5;
 const light = new THREE.AmbientLight(color, intensity);
 scene.add(light);
 add_ambient_light()
@@ -251,6 +251,39 @@ function handleRaycast() {
     //mousePlane.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
   }
 }
+/*
+const loader2 = new GLTFLoader();
+
+loader2.load( 'models/merchant.glb', function ( gltf ) {
+
+  // 1. Grab the model from the gltf object
+  const mdl = gltf.scene; 
+  
+  // 2. Set the scale correctly
+  mdl.scale.set(8,8,8);
+  mdl.position.set(0,-5,0)
+
+  // 3. Add it to the scene
+  //scene.add( mdl );
+
+  console.log("Model loaded successfully!");
+
+}, undefined, function ( error ) {
+  console.error( "An error happened:", error );
+} );
+*/
+
+		const loader3 = new THREE.TextureLoader();
+		const texture2 = loader.load(
+			'https://threejs.org/manual/examples/resources/images/equirectangularmaps/tears_of_steel_bridge_2k.jpg',
+			() => {
+
+				texture2.mapping = THREE.EquirectangularReflectionMapping;
+				texture2.colorSpace = THREE.SRGBColorSpace;
+				scene.background = texture2;
+
+			} );
+
 
 
 //Update main game loop
