@@ -109,6 +109,7 @@ window.addEventListener('keyup', e => {
 // Called every frame from main
 
 let accumulatedJumpImpulse = false;
+let jumpForce = 0;
 
 export function updatePlayer(deltaTime) {
   const move = new THREE.Vector3();
@@ -139,19 +140,24 @@ export function updatePlayer(deltaTime) {
   }
 
   // Gravity
-  const GRAVITY = 25;
+  const GRAVITY = 20;
   const movement = {
     x: desiredVelocity.x * deltaTime,
-    y: -GRAVITY * deltaTime,
+    y: -(GRAVITY -  jumpForce) * deltaTime,
     z: desiredVelocity.z * deltaTime
   };
 
   // Jump
   if (keys.jump && characterController.computedGrounded() && !accumulatedJumpImpulse) {
-    movement.y += 8; // jump impulse
+    //movement.y = 8; // jump impulse
+    jumpForce = 50
     accumulatedJumpImpulse = true;
   }
-  if (!keys.jump) accumulatedJumpImpulse = false; // reset when released
+  if (!keys.jump || jumpForce >= 0){
+     accumulatedJumpImpulse = false; // reset when released
+     jumpForce += -1;
+     if (jumpForce < 0) jumpForce = 0;
+  }
 
   // Compute movement
   characterController.computeColliderMovement(collider, movement);
