@@ -77,6 +77,8 @@ function create_raycast() {
     heldEnt.material = new THREE.MeshStandardMaterial({ color: 0x00ff00, wireframe: false, transparent: true });
     heldEnt.material.color.set(new THREE.Color(Math.random(), Math.random(), Math.random()));
     }
+  } else {
+    heldEnt = null;
   }
 }
 
@@ -143,7 +145,7 @@ export function updatePlayer(deltaTime) {
   const GRAVITY = 20;
   const movement = {
     x: desiredVelocity.x * deltaTime,
-    y: -(GRAVITY -  jumpForce) * deltaTime,
+    y: -(GRAVITY - jumpForce) * deltaTime,
     z: desiredVelocity.z * deltaTime
   };
 
@@ -155,7 +157,7 @@ export function updatePlayer(deltaTime) {
   }
   if (!keys.jump || jumpForce >= 0){
      accumulatedJumpImpulse = false; // reset when released
-     jumpForce += -1;
+     jumpForce -= (95 * deltaTime);
      if (jumpForce < 0) jumpForce = 0;
   }
 

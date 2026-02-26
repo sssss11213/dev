@@ -7,6 +7,8 @@ import { RAPIER } from './src/physics';
 import { element } from 'three/tsl';
 import { updatePlayer } from './src/player';
 import { heldEnt } from './src/player';
+//import { wp_sprite } from './src/weapon_state';
+//import { testenemy } from './src/enemy';
 //import { QuakeMapParser } from './src/quakemapparser';
 
 // some vars
@@ -26,7 +28,7 @@ texture.repeat = new THREE.Vector2(1,1)
 
 const dev_material = new THREE.MeshPhongMaterial({
   //color: 0xFF0000,    // red (can also use a CSS color string here)
-  flatShading: true,
+  flatShading: false,
   map: texture,
 });
 
@@ -69,8 +71,16 @@ function create_cube(mousePos) {
   let y = Math.random() * range - range * 0.5 + 3;
   let z = Math.random() * range - range * 0.5;
 
+  const min = Math.ceil(0.2);
+  const max = Math.floor(3.5);
+  let sizeModifier = (Math.floor(Math.random() * (max - min)) + min);
+
+  const geometry = new THREE.BoxGeometry(sizeModifier,sizeModifier,sizeModifier)
+
   const cube = new THREE.Mesh( geometry, material );
   cube.name = "phys_ent" + cube.id;
+  cube.castShadow = true;
+  cube.receiveShadow = true;
   scene.add( cube );
 
   let rigidBodyDesc = RAPIER.RigidBodyDesc.dynamic()
@@ -121,7 +131,7 @@ function create_cube(mousePos) {
     let q = rigid.rotation();
     let rote = new THREE.Quaternion(q.x, q.y, q.z, q.w);
     cube.rotation.setFromQuaternion(rote);
-    //rigid.addForce(dir.multiplyScalar(-15), true);
+    //  rigid.addForce(dir.multiplyScalar(-15), true);
     cube.position.set(x, y, z);
   }
   return update;
@@ -134,6 +144,7 @@ function create_static_cube(x, y, z) {
 
   const cube = new THREE.Mesh( geometry, dev_material );
   cube.position.set(x, y, z);
+  cube.receiveShadow = true;
   scene.add( cube );
 
   let rigidBodyDesc = RAPIER.RigidBodyDesc.fixed()
@@ -156,28 +167,43 @@ const rigid = floorAndRigid[1];
 //rigid.rotation.x = -Math.PI / 2;
 
 // make 10 cubes
-for (let i = 0; i < 150; i++) {
+for (let i = 0; i < 10; i++) {
 let new_cube = create_cube();
 phys_ents.push(new_cube);
 }
 
 
-// Add directional and ambiuent light
-function add_ambient_light() {
-  const color = 0xFFFFFF;
-  const intensity = 5;
-  const light = new THREE.DirectionalLight(color, intensity);
-  light.position.set(0, 20, 0);
-  light.target.position.set(-5, 0, 0);
-  scene.add(light);
-  scene.add(light.target);
-}
+// white spotlight shining from the side, modulated by a texture
+const spotLight = new THREE.SpotLight( 0xffffff );
+spotLight.position.set( 30,2,0 );
+//spotLight.map = new THREE.TextureLoader().load( url );
 
-const color = 0xFFFFFF;
-const intensity = 1.5;
-const light = new THREE.AmbientLight(color, intensity);
+
+spotLight.castShadow = true;
+spotLight.intensity = 5;
+spotLight.shadow.mapSize.width = 2048;
+spotLight.shadow.mapSize.height = 2048;
+spotLight.shadow.camera.near = 0.5;
+spotLight.shadow.camera.far = 500;
+spotLight.shadow.camera.fov = 15
+spotLight.decay = 0.1;
+spotLight.distance = 200;
+//spotLight.shadow.radius = 15;
+
+scene.add(spotLight)
+const helper = new THREE.SpotLightHelper(spotLight)
+scene.add(helper)
+
+
+//scene.add(dir_light);
+//scene.add(dir_light.target);
+
+
+const amb_color = 0xFFFFFF;
+const amb_intensity = 0.1;
+const light = new THREE.AmbientLight(amb_color, amb_intensity);
 scene.add(light);
-add_ambient_light()
+
 
 
 
