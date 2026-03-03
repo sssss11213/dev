@@ -35,10 +35,12 @@ window.addEventListener('keydown', e => {
 
 const loader = new GLTFLoader();
 
+let mixer;
+
 export function LoadViewmodel(shouldUpdateMesh,geometry){
   if (shouldUpdateMesh != true){
   const testweapon = new weapon('models/merchant.glb',10,'Test Weapon')
-  const testweapon2 = new weapon('models/room.glb',10,'Test Weapon number 2')
+  const testweapon2 = new weapon('models/exported/viewmodel_galil_F.glb',10,'Test Weapon number 2')
 
   loader.load( testweapon.sprite_sheet, function ( gltf ) {
 
@@ -46,7 +48,7 @@ export function LoadViewmodel(shouldUpdateMesh,geometry){
     wp_viewmodel = gltf.scene; 
     
     // 2. Set the scale correctly
-    wp_viewmodel.scale.set(8,8,8);
+    wp_viewmodel.scale.set(1,1,1);
     wp_viewmodel.position.set(0,5,0); 
 
     // 3. Add it to the scene
@@ -55,6 +57,8 @@ export function LoadViewmodel(shouldUpdateMesh,geometry){
     console.log("Viewmodel loaded successfully!");
     slots[1] = testweapon
     slots[2] = testweapon2 
+
+    switchWeapon(2)
 
   }, undefined, function ( error ) {
     console.error( "An error happened:", error );
@@ -71,6 +75,16 @@ export function LoadViewmodel(shouldUpdateMesh,geometry){
         wp_viewmodel = model
         scene.add(wp_viewmodel)
         THREE.log('geometry switched')
+
+
+        mixer = new THREE.AnimationMixer(model);
+
+        // Option 1: Play the first animation (most common)
+        const action = mixer.clipAction('IdleAnim');
+        //const action = mixer.clipAction(gltf.animations[0]);
+        THREE.log(mixer.clipAction(gltf.animations[1]).name)
+        action.play();
+        action.loop = THREE.LoopRepeat;
       }
     })
   });
@@ -79,9 +93,9 @@ export function LoadViewmodel(shouldUpdateMesh,geometry){
 
 function updateViewmodel(){
   if (wp_viewmodel != null){
-    //wp_viewmodel.position.set(camera.position.x,5,camera.position.z)
+    wp_viewmodel.position.set(camera.position.x,camera.position.y,camera.position.z)
 
-    //wp_viewmodel.rotation.set(camera.rotation.x, camera.rotation.y,camera.rotation.z)
+    wp_viewmodel.quaternion.copy(camera.quaternion);
   }
   else{
     THREE.warn('Viewmodel is not loaded')
