@@ -7,7 +7,9 @@ import { RAPIER } from './src/physics';
 import { element } from 'three/tsl';
 import { updatePlayer } from './src/player';
 import { heldEnt } from './src/player';
-//import { wp_sprite } from './src/weapon_state';
+import { wp_viewmodel } from './src/weapon_state';
+import { updateViewmodel } from './src/weapon_state';
+import { LoadViewmodel } from './src/weapon_state';
 //import { testenemy } from './src/enemy';
 //import { QuakeMapParser } from './src/quakemapparser';
 
@@ -188,7 +190,7 @@ spotLight.shadow.camera.far = 500;
 spotLight.shadow.camera.fov = 15
 spotLight.decay = 0.1;
 spotLight.distance = 200;
-//spotLight.shadow.radius = 15;
+spotLight.shadow.radius = 5;
 
 scene.add(spotLight)
 const helper = new THREE.SpotLightHelper(spotLight)
@@ -299,27 +301,37 @@ loader2.load( 'models/merchant.glb', function ( gltf ) {
 } );
 */
 
-		const loader3 = new THREE.TextureLoader();
-		const texture2 = loader.load(
-			'https://threejs.org/manual/examples/resources/images/equirectangularmaps/tears_of_steel_bridge_2k.jpg',
-			() => {
+const loader3 = new THREE.TextureLoader();
+const texture2 = loader.load(
+  'https://threejs.org/manual/examples/resources/images/equirectangularmaps/tears_of_steel_bridge_2k.jpg',
+  () => {
 
-				texture2.mapping = THREE.EquirectangularReflectionMapping;
-				texture2.colorSpace = THREE.SRGBColorSpace;
-				scene.background = texture2;
+    texture2.mapping = THREE.EquirectangularReflectionMapping;
+    texture2.colorSpace = THREE.SRGBColorSpace;
+    scene.background = texture2;
 
-			} );
+  } );
 
 
+//rapier phys simulation speed
+const FPS = 1/30;
+world.timestep = FPS;
+
+
+LoadViewmodel();
 
 //Update main game loop
 function animate() {
+
 
   world.step();
   handleRaycast();
 
   //Update player physics
   updatePlayer(clock.getDelta());
+
+
+  updateViewmodel();
 
   //Loop thru phys ents and update them
   var arrayLength = phys_ents.length;

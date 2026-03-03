@@ -3,6 +3,13 @@ import world from '/src/physics';
 import * as THREE from 'three';
 import { scene } from '/src/render';
 import camera from '/src/camera';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { mod } from 'three/tsl';
+
+let wp_viewmodel = null;
+let lastdigitinput = null;
+let currentWeapon = null;
+let currentSlot = 1;
 
 class weapon {
   constructor(sprite_sheet, maxammo, name) {
@@ -12,14 +19,85 @@ class weapon {
   }
 }
 
-const testweapon = new weapon('../textures/weaponsprite.png',10,'Test Weapon')
+const slots = {
+  1: weapon,
+  2: weapon
+};
 
-const wp_texture =  new THREE.TextureLoader().load(testweapon.sprite_sheet)
+window.addEventListener('keydown', e => {
+  e.preventDefault();
+  //THREE.log(e.code)
+  switch (e.code) {
+    case 'Digit1':  switchWeapon(1); break;
+    case 'Digit2':  switchWeapon(2); break;
+  }
+});
 
-const wp_mat = new THREE.SpriteMaterial({map: wp_texture})
-const wp_sprite = new THREE.Sprite( wp_mat );
-scene.add( wp_sprite );
-wp_sprite.position.set(0,3,0);
+const loader = new GLTFLoader();
 
+export function LoadViewmodel(shouldUpdateMesh,geometry){
+  if (shouldUpdateMesh != true){
+  const testweapon = new weapon('models/merchant.glb',10,'Test Weapon')
+  const testweapon2 = new weapon('models/room.glb',10,'Test Weapon number 2')
 
-export {wp_sprite};    
+  loader.load( testweapon.sprite_sheet, function ( gltf ) {
+
+    // 1. Grab the model from the gltf object
+    wp_viewmodel = gltf.scene; 
+    
+    // 2. Set the scale correctly
+    wp_viewmodel.scale.set(8,8,8);
+    wp_viewmodel.position.set(0,5,0); 
+
+    // 3. Add it to the scene
+    scene.add( wp_viewmodel );
+
+    console.log("Viewmodel loaded successfully!");
+    slots[1] = testweapon
+    slots[2] = testweapon2 
+
+  }, undefined, function ( error ) {
+    console.error( "An error happened:", error );
+  } );
+  }else{
+  loader.load( slots[currentSlot].sprite_sheet, function ( gltf ) {
+    const model = gltf.scene
+    wp_viewmodel.traverse(function (child){
+      if (child.isMesh){
+        //child.geometry = model.geometry
+        model.position.set(wp_viewmodel.position.x,wp_viewmodel.position.y,wp_viewmodel.position.z)
+        model.scale.set(wp_viewmodel.scale.x,wp_viewmodel.scale.y,wp_viewmodel.scale.z)
+        scene.remove(wp_viewmodel)
+        wp_viewmodel = model
+        scene.add(wp_viewmodel)
+        THREE.log('geometry switched')
+      }
+    })
+  });
+  } 
+}
+
+function updateViewmodel(){
+  if (wp_viewmodel != null){
+    //wp_viewmodel.position.set(camera.position.x,5,camera.position.z)
+
+    //wp_viewmodel.rotation.set(camera.rotation.x, camera.rotation.y,camera.rotation.z)
+  }
+  else{
+    THREE.warn('Viewmodel is not loaded')
+  }
+}
+
+function switchWeapon(slot){
+  if (slot != lastdigitinput){
+    THREE.log(slots[slot].name)
+    currentWeapon = slots[slot]
+    currentSlot = slot
+    LoadViewmodel(true)
+  }
+  lastdigitinput = slot;
+}
+
+export {wp_viewmodel};
+export { updateViewmodel };
+export { currentSlot };
