@@ -22,7 +22,7 @@ const loader = new THREE.TextureLoader();
 const clock = new THREE.Clock(true)
 
 // Dev material
-const texture = loader.load( 'textures/grid.png' );
+let texture = loader.load( 'textures/grid.png' );
 texture.colorSpace = THREE.SRGBColorSpace;
 texture.anisotropy = 16
 texture.RepeatWrapping
@@ -56,6 +56,19 @@ const material = new THREE.MeshPhongMaterial({
   flatShading: true,
 });
 
+// Dev material
+texture = loader.load( 'textures/crate.png' );
+texture.colorSpace = THREE.SRGBColorSpace;
+texture.anisotropy = 16
+texture.RepeatWrapping
+texture.repeat = new THREE.Vector2(1,1)
+
+const crate_material = new THREE.MeshPhongMaterial({
+  //color: 0xFF0000,    // red (can also use a CSS color string here)
+  flatShading: false,
+  shininess: 0,
+  map: texture,
+});
 
 
 
@@ -79,7 +92,7 @@ function create_cube(mousePos) {
 
   const geometry = new THREE.BoxGeometry(sizeModifier,sizeModifier,sizeModifier)
 
-  const cube = new THREE.Mesh( geometry, material );
+  const cube = new THREE.Mesh( geometry, crate_material );
   cube.name = "phys_ent" + cube.id;
   cube.castShadow = true;
   cube.receiveShadow = true;

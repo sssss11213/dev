@@ -112,6 +112,26 @@ function switchWeapon(slot){
   lastdigitinput = slot;
 }
 
+function fireWeapon(){
+  let cameraDirection = new THREE.Vector3();
+
+  // orient the mouse plane to the camera
+  camera.getWorldDirection(cameraDirection);
+  cameraDirection.multiplyScalar(-1);
+  //mousePlane.lookAt(cameraDirection);
+
+  raycaster.setFromCamera(pointerPos, camera);
+  const intersects = raycaster.intersectObjects(
+    //[mousePlane],
+    [floor],
+    false
+  );
+  if (intersects.length > 0) {
+    mousePos.copy(intersects[0].point);
+    //mousePlane.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
+  }
+}
+
 export {wp_viewmodel};
 export { updateViewmodel };
 export { currentSlot };
