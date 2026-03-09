@@ -11,7 +11,7 @@ const halfHeight = 0.9;
 
 const body = world.createRigidBody(
   RAPIER.RigidBodyDesc.kinematicPositionBased()
-    .setTranslation(0, 5, 0)
+    .setTranslation(0, 10, 0)
 );
 
 const colliderDesc = RAPIER.ColliderDesc.capsule(halfHeight, radius)

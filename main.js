@@ -11,7 +11,18 @@ import { wp_viewmodel } from './src/weapon_state';
 import { updateViewmodel } from './src/weapon_state';
 import { LoadViewmodel } from './src/weapon_state';
 //import { testenemy } from './src/enemy';
-//import { QuakeMapParser } from './src/quakemapparser';
+import { loadMap, loadMapFromURL, unloadMap } from './src/mapParser.js';
+
+// From a string (e.g. loaded via fetch/file input):
+const res = await fetch('./maps/test.map');
+//const res = await fetch('./maps/bal_dwellep2_props.map');
+const mapSource = await res.text();
+loadMap(mapSource);
+
+const result = loadMap(mapSource);
+console.log(result.entities.length);  // should be > 0
+console.log(result.meshes.length);    // should be > 0
+
 
 // some vars
 const raycaster = new THREE.Raycaster();

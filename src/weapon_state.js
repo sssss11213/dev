@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { scene } from '/src/render';
 import camera from '/src/camera';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { mod } from 'three/tsl';
+import { mix, mod } from 'three/tsl';
 
 let wp_viewmodel = null;
 let lastdigitinput = null;
 let currentWeapon = null;
 let currentSlot = 1;
+
+const clock = new THREE.Clock(true)
 
 class weapon {
   constructor(sprite_sheet, maxammo, name) {
@@ -35,7 +37,7 @@ window.addEventListener('keydown', e => {
 
 const loader = new GLTFLoader();
 
-let mixer;
+let mixer = null;
 
 export function LoadViewmodel(shouldUpdateMesh,geometry){
   if (shouldUpdateMesh != true){
@@ -80,11 +82,21 @@ export function LoadViewmodel(shouldUpdateMesh,geometry){
         mixer = new THREE.AnimationMixer(model);
 
         // Option 1: Play the first animation (most common)
-        const action = mixer.clipAction('IdleAnim');
+        //const action = mixer.clipAction('IdleAnim');
         //const action = mixer.clipAction(gltf.animations[0]);
-        THREE.log(mixer.clipAction(gltf.animations[1]).name)
-        action.play();
-        action.loop = THREE.LoopRepeat;
+        THREE.log(mixer.clipAction('Idle'))
+        //action.play();
+        //action.loop = THREE.LoopRepeat;
+
+        const clips = model.animations;
+
+        const clip = THREE.AnimationClip.findByName( clips, 'IdleAnim' );
+        const action = mixer.clipAction( clip );
+        //action.play();
+        clips.forEach( function ( clipn ) {
+          THREE.log(mixer.clipAction(clipn).name)
+        } );
+
       }
     })
   });
@@ -96,6 +108,10 @@ function updateViewmodel(){
     wp_viewmodel.position.set(camera.position.x,camera.position.y,camera.position.z)
 
     wp_viewmodel.quaternion.copy(camera.quaternion);
+
+    if (mixer != null){
+    mixer.update( clock.getDelta );
+    }
   }
   else{
     THREE.warn('Viewmodel is not loaded')
