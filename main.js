@@ -11,17 +11,13 @@ import { wp_viewmodel } from './src/weapon_state';
 import { updateViewmodel } from './src/weapon_state';
 import { LoadViewmodel } from './src/weapon_state';
 //import { testenemy } from './src/enemy';
-import { loadMap, loadMapFromURL, unloadMap } from './src/mapParser.js';
+import { loadMap, loadMapFromURL, createTextureMaterialFactory } from './src/mapParser.js';
 
-// From a string (e.g. loaded via fetch/file input):
+const getMaterial = createTextureMaterialFactory('./maps/textures/', 'png');
+
 const res = await fetch('./maps/test.map');
-//const res = await fetch('./maps/bal_dwellep2_props.map');
 const mapSource = await res.text();
-loadMap(mapSource);
-
-const result = loadMap(mapSource);
-console.log(result.entities.length);  // should be > 0
-console.log(result.meshes.length);    // should be > 0
+loadMap(mapSource, { getMaterial });
 
 
 // some vars
@@ -44,6 +40,15 @@ const dev_material = new THREE.MeshPhongMaterial({
   flatShading: false,
   map: texture,
 });
+
+
+//DEBUG TESTING LIGHTS
+if (7 == 7){
+  scene.add(new THREE.AmbientLight(0xffffff, 0.2));
+  const sun = new THREE.DirectionalLight(0xffffff, 1);
+  sun.position.set(10, 20, 10);
+  scene.add(sun);
+}
 
 
 //notes
@@ -201,12 +206,12 @@ phys_ents.push(new_cube);
 
 // white spotlight shining from the side, modulated by a texture
 const spotLight = new THREE.SpotLight( 0xffffff );
-spotLight.position.set( 30,2,0 );
+spotLight.position.set( 30,20,0 );
 //spotLight.map = new THREE.TextureLoader().load( url );
 
 
 spotLight.castShadow = true;
-spotLight.intensity = 5;
+spotLight.intensity = 1;
 spotLight.shadow.mapSize.width = 2048;
 spotLight.shadow.mapSize.height = 2048;
 spotLight.shadow.camera.near = 0.5;
