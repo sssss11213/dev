@@ -183,3 +183,4 @@ export function updatePlayer(deltaTime) {
 }
 
 export { heldEnt };
+export { body };

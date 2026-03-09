@@ -7,17 +7,75 @@ import { RAPIER } from './src/physics';
 import { element } from 'three/tsl';
 import { updatePlayer } from './src/player';
 import { heldEnt } from './src/player';
+import { body } from './src/player';
 import { wp_viewmodel } from './src/weapon_state';
 import { updateViewmodel } from './src/weapon_state';
 import { LoadViewmodel } from './src/weapon_state';
 //import { testenemy } from './src/enemy';
-import { loadMap, loadMapFromURL, createTextureMaterialFactory } from './src/mapParser.js';
+import { loadMap, loadMapFromURL, createTextureMaterialFactory, spawnEntities } from './src/mapParser.js';
 
 const getMaterial = createTextureMaterialFactory('./maps/textures/', 'png');
 
 const res = await fetch('./maps/test.map');
 const mapSource = await res.text();
-loadMap(mapSource, { getMaterial });
+const result = loadMap(mapSource, { getMaterial });
+
+spawnEntities(result.pointEntities, {
+
+  // Player spawn — set camera position
+  info_player_start(props, origin) {
+    body.setTranslation(origin)
+  },
+
+  // Custom torch entity
+  my_torch(props, origin) {
+    // props contains everything you defined in TrenchBroom
+    const color     = props.color ?? '255 140 0';
+    const intensity = parseFloat(props.intensity ?? '2');
+
+    // Parse the color string "R G B"
+    const [r, g, b] = color.split(' ').map(n => parseInt(n) / 255);
+
+    const light = new THREE.PointLight(
+      new THREE.Color(r, g, b),
+      intensity,
+      15  // range in Three.js units
+    );
+    light.castShadow = true;
+    light.position.copy(origin);
+    scene.add(light);
+
+    // Optionally attach a visible mesh
+    const geo  = new THREE.SphereGeometry(0.1);
+    const mat  = new THREE.MeshBasicMaterial({ color: new THREE.Color(r, g, b) });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(origin);
+    scene.add(mesh);
+
+    return { light, mesh }; // returned into spawned[] for cleanup later
+  },
+
+  // Trigger volume — brush entity, won't appear in pointEntities
+  // but you can handle it separately by checking result.entities directly:
+
+  // Pickup item
+  item_health(props, origin) {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.5, 0.5, 0.5),
+      new THREE.MeshStandardMaterial({ color: 0x00ff44 })
+    );
+    mesh.position.copy(origin);
+    scene.add(mesh);
+
+    // Tag it so your game loop can handle pickup logic
+    mesh.userData.type      = 'pickup';
+    mesh.userData.pickupType = 'health';
+    mesh.userData.amount    = parseInt(props.amount ?? '25');
+
+    return mesh;
+  },
+
+});
 
 
 // some vars

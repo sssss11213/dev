@@ -31,3 +31,8 @@
 ( -192 80 16 ) ( -192 208 16 ) ( -192 208 -16 ) __TB_empty 0 0 0 1 1
 }
 }
+// entity 1
+{
+"classname" "info_player_start"
+"origin" "-224 128 40"
+}
