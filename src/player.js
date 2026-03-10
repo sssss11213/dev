@@ -24,9 +24,11 @@ const collider = world.createCollider(colliderDesc, body);
 
 const characterController = world.createCharacterController(0.02); // skin width
 characterController.setApplyImpulsesToDynamicBodies(true);
-characterController.enableAutostep(0.4, 0.2, true);        // step height
-characterController.setMaxSlopeClimbAngle(50 * Math.PI / 180);
+characterController.setMaxSlopeClimbAngle(55 * Math.PI / 180);
 characterController.setMinSlopeSlideAngle(35 * Math.PI / 180);
+
+characterController.enableAutostep(2.1, 0.2, true);
+characterController.enableSnapToGround(0.5);
 
 // capsule mesh
 
@@ -110,8 +112,7 @@ window.addEventListener('keyup', e => {
 
 // Called every frame from main
 
-let accumulatedJumpImpulse = false;
-let jumpForce = 0;
+let verticalVelocity = 0;
 
 export function updatePlayer(deltaTime) {
   const move = new THREE.Vector3();
@@ -125,59 +126,46 @@ export function updatePlayer(deltaTime) {
 
   if (move.lengthSq() > 0) {
     move.normalize();
-
-    // Make movement relative to camera dir
     const camForward = new THREE.Vector3();
     camera.getWorldDirection(camForward);
     camForward.y = 0;
     camForward.normalize();
-
-    const camRight = new THREE.Vector3().crossVectors(camForward, new THREE.Vector3(0,1,0)).normalize();
+    const camRight = new THREE.Vector3()
+      .crossVectors(camForward, new THREE.Vector3(0, 1, 0))
+      .normalize();
 
     desiredVelocity
-      .addScaledVector(camForward, -move.z)   // forward/back
-      .addScaledVector(camRight,    move.x);  // left/right
-
-    desiredVelocity.normalize().multiplyScalar(7.5); // walk speed
+      .addScaledVector(camForward, -move.z)
+      .addScaledVector(camRight,    move.x);
+    desiredVelocity.normalize().multiplyScalar(7.5);
   }
 
-  // Gravity
-  const GRAVITY = 20;
+  // Accumulate gravity properly — reset when grounded
+  if (characterController.computedGrounded()) {
+    verticalVelocity = -0.1; // small downward force to keep grounded
+    if (keys.jump) {
+      verticalVelocity = 9;  // jump impulse
+    }
+  } else {
+    verticalVelocity -= 20 * deltaTime; // gravity
+  }
+
   const movement = {
     x: desiredVelocity.x * deltaTime,
-    y: -(GRAVITY - jumpForce) * deltaTime,
-    z: desiredVelocity.z * deltaTime
+    y: verticalVelocity  * deltaTime,
+    z: desiredVelocity.z * deltaTime,
   };
 
-  // Jump
-  if (keys.jump && characterController.computedGrounded() && !accumulatedJumpImpulse) {
-    //movement.y = 8; // jump impulse
-    jumpForce = 50
-    accumulatedJumpImpulse = true;
-  }
-  if (!keys.jump || jumpForce >= 0){
-     accumulatedJumpImpulse = false; // reset when released
-     jumpForce -= (95 * deltaTime);
-     if (jumpForce < 0) jumpForce = 0;
-  }
-
-  // Compute movement
   characterController.computeColliderMovement(collider, movement);
+  const corrected = characterController.computedMovement();
 
-  const correctedMovement = characterController.computedMovement();
-
-  // Apply
   const pos = body.translation();
-  body.setNextKinematicTranslation(
-    {
-      x: pos.x + correctedMovement.x,
-      y: pos.y + correctedMovement.y,
-      z: pos.z + correctedMovement.z
-    },
-    true
-  );
+  body.setNextKinematicTranslation({
+    x: pos.x + corrected.x,
+    y: pos.y + corrected.y,
+    z: pos.z + corrected.z,
+  });
 
-  // Sync capsule mesh and camera
   capsuleMesh.position.set(pos.x, pos.y, pos.z);
   camera.position.set(pos.x, pos.y + halfHeight + radius, pos.z);
 }
