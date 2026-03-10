@@ -6,6 +6,8 @@ import camera from '/src/camera';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { mix, mod } from 'three/tsl';
 
+//for anims https://www.youtube.com/watch?v=b2zNffUuDoU
+
 let wp_viewmodel = null;
 let lastdigitinput = null;
 let currentWeapon = null;
@@ -66,55 +68,36 @@ export function LoadViewmodel(shouldUpdateMesh,geometry){
     console.error( "An error happened:", error );
   } );
   }else{
-  loader.load( slots[currentSlot].sprite_sheet, function ( gltf ) {
-    const model = gltf.scene
-    wp_viewmodel.traverse(function (child){
-      if (child.isMesh){
-        //child.geometry = model.geometry
-        model.position.set(wp_viewmodel.position.x,wp_viewmodel.position.y,wp_viewmodel.position.z)
-        model.scale.set(wp_viewmodel.scale.x,wp_viewmodel.scale.y,wp_viewmodel.scale.z)
-        scene.remove(wp_viewmodel)
-        wp_viewmodel = model
-        scene.add(wp_viewmodel)
-        THREE.log('geometry switched')
+    loader.load(slots[currentSlot].sprite_sheet, function (gltf) {
+      const model = gltf.scene;
 
+      model.position.set(wp_viewmodel.position.x, wp_viewmodel.position.y, wp_viewmodel.position.z);
+      model.scale.set(wp_viewmodel.scale.x, wp_viewmodel.scale.y, wp_viewmodel.scale.z);
+      scene.remove(wp_viewmodel);
+      wp_viewmodel = model;
+      scene.add(wp_viewmodel);
 
-        mixer = new THREE.AnimationMixer(model);
+      // Set up animation mixer once on the model, not inside traverse
+      mixer = new THREE.AnimationMixer(model);
+      console.log('animations:', gltf.animations.map(c => c.name));
 
-        // Option 1: Play the first animation (most common)
-        //const action = mixer.clipAction('IdleAnim');
-        //const action = mixer.clipAction(gltf.animations[0]);
-        THREE.log(mixer.clipAction('Idle'))
-        //action.play();
-        //action.loop = THREE.LoopRepeat;
-
-        const clips = model.animations;
-
-        const clip = THREE.AnimationClip.findByName( clips, 'IdleAnim' );
-        const action = mixer.clipAction( clip );
-        //action.play();
-        clips.forEach( function ( clipn ) {
-          THREE.log(mixer.clipAction(clipn).name)
-        } );
-
+      const clip = THREE.AnimationClip.findByName(gltf.animations, 'Idle');
+      if (!clip) {
+        console.warn('Idle clip not found, available:', gltf.animations.map(c => c.name));
+        return;
       }
-    })
-  });
+      mixer.clipAction(clip).play();
+    });
   } 
 }
 
-function updateViewmodel(){
-  if (wp_viewmodel != null){
-    wp_viewmodel.position.set(camera.position.x,camera.position.y,camera.position.z)
-
+function updateViewmodel() {
+  if (wp_viewmodel != null) {
+    wp_viewmodel.position.set(camera.position.x, camera.position.y, camera.position.z);
     wp_viewmodel.quaternion.copy(camera.quaternion);
-
-    if (mixer != null){
-    mixer.update( clock.getDelta );
-    }
   }
-  else{
-    THREE.warn('Viewmodel is not loaded')
+  if (mixer !== null && mixer !== undefined) {
+    mixer.update(clock.getDelta());
   }
 }
 

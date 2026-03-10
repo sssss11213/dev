@@ -20,7 +20,7 @@ import { scene } from '/src/render';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Quake units → metres. */
-const QUAKE_SCALE = 1 / 8;
+const QUAKE_SCALE = 1 / 32;
 
 /** Tolerance for half-space membership and vertex deduplication. */
 const EPSILON = 0.01;
