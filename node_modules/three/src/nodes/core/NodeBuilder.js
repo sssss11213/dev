@@ -8,7 +8,7 @@ import ParameterNode from './ParameterNode.js';
 import StructType from './StructType.js';
 import FunctionNode from '../code/FunctionNode.js';
 import NodeMaterial from '../../materials/nodes/NodeMaterial.js';
-import { getTypeFromLength } from './NodeUtils.js';
+import { getDataFromObject, getTypeFromLength, hashString } from './NodeUtils.js';
 import { NodeUpdateType, defaultBuildStages, shaderStages } from './constants.js';
 
 import {
@@ -20,7 +20,6 @@ import { stack } from './StackNode.js';
 import { getCurrentStack, setCurrentStack } from '../tsl/TSLBase.js';
 
 import CubeRenderTarget from '../../renderers/common/CubeRenderTarget.js';
-import ChainMap from '../../renderers/common/ChainMap.js';
 
 import BindGroup from '../../renderers/common/BindGroup.js';
 
@@ -35,9 +34,9 @@ import { warn, error } from '../../utils.js';
 
 let _id = 0;
 
-const sharedNodeData = new WeakMap();
+const _bindingGroupsCache = new WeakMap();
 
-const rendererCache = new WeakMap();
+const sharedNodeData = new WeakMap();
 
 const typeFromArray = new Map( [
 	[ Int8Array, 'int' ],
@@ -140,7 +139,10 @@ class NodeBuilder {
 		this.nodes = [];
 
 		/**
-		 * A list of all sequential nodes.
+		 * A list of all nodes the builder is processing in sequential order.
+		 *
+		 * This is used to determine the update order of nodes, which is important for
+		 * {@link NodeUpdateType#UPDATE_BEFORE} and {@link NodeUpdateType#UPDATE_AFTER}.
 		 *
 		 * @type {Array<Node>}
 		 */
@@ -468,6 +470,17 @@ class NodeBuilder {
 	}
 
 	/**
+	 * Whether the material is using flat shading or not.
+	 *
+	 * @returns {boolean} Whether the material is using flat shading or not.
+	 */
+	isFlatShading() {
+
+		return this.material.flatShading === true || this.geometry.hasAttribute( 'normal' ) === false;
+
+	}
+
+	/**
 	 * Whether the material is opaque or not.
 	 *
 	 * @return {boolean} Whether the material is opaque or not.
@@ -477,27 +490,6 @@ class NodeBuilder {
 		const material = this.material;
 
 		return material.transparent === false && material.blending === NormalBlending && material.alphaToCoverage === false;
-
-	}
-
-	/**
-	 * Returns the bind groups of the current renderer.
-	 *
-	 * @return {ChainMap} The cache.
-	 */
-	getBindGroupsCache() {
-
-		let bindGroupsCache = rendererCache.get( this.renderer );
-
-		if ( bindGroupsCache === undefined ) {
-
-			bindGroupsCache = new ChainMap();
-
-			rendererCache.set( this.renderer, bindGroupsCache );
-
-		}
-
-		return bindGroupsCache;
 
 	}
 
@@ -561,19 +553,21 @@ class NodeBuilder {
 	 */
 	_getBindGroup( groupName, bindings ) {
 
-		const bindGroupsCache = this.getBindGroupsCache();
+		const groupNode = bindings[ 0 ].groupNode;
 
-		//
+		let sharedGroup = groupNode.shared;
 
-		const bindingsArray = [];
+		if ( sharedGroup ) {
 
-		let sharedGroup = true;
+			for ( let i = 1; i < bindings.length; i ++ ) {
 
-		for ( const binding of bindings ) {
+				if ( groupNode !== bindings[ i ].groupNode ) {
 
-			bindingsArray.push( binding );
+					sharedGroup = false;
 
-			sharedGroup = sharedGroup && binding.groupNode.shared !== true;
+				}
+
+			}
 
 		}
 
@@ -583,19 +577,59 @@ class NodeBuilder {
 
 		if ( sharedGroup ) {
 
-			bindGroup = bindGroupsCache.get( bindingsArray );
+			let cacheKeyString = '';
+
+			for ( const binding of bindings ) {
+
+				if ( binding.isNodeUniformsGroup ) {
+
+					binding.uniforms.sort( ( a, b ) => a.nodeUniform.node.id - b.nodeUniform.node.id );
+
+					for ( const uniform of binding.uniforms ) {
+
+						cacheKeyString += uniform.nodeUniform.node.id;
+
+					}
+
+				} else {
+
+					cacheKeyString += binding.nodeUniform.id;
+
+				}
+
+			}
+
+			// TODO: Remove this hack ._currentRenderContext
+
+			const currentContext = this.renderer._currentRenderContext || this.renderer; // use renderer as fallback until we have a compute context
+
+			let bindingGroupsCache = _bindingGroupsCache.get( currentContext );
+
+			if ( bindingGroupsCache === undefined ) {
+
+				bindingGroupsCache = new Map();
+
+				_bindingGroupsCache.set( currentContext, bindingGroupsCache );
+
+			}
+
+			//
+
+			const cacheKey = hashString( cacheKeyString );
+
+			bindGroup = bindingGroupsCache.get( cacheKey );
 
 			if ( bindGroup === undefined ) {
 
-				bindGroup = new BindGroup( groupName, bindingsArray, this.bindingsIndexes[ groupName ].group, bindingsArray );
+				bindGroup = new BindGroup( groupName, bindings, this.bindingsIndexes[ groupName ].group );
 
-				bindGroupsCache.set( bindingsArray, bindGroup );
+				bindingGroupsCache.set( cacheKey, bindGroup );
 
 			}
 
 		} else {
 
-			bindGroup = new BindGroup( groupName, bindingsArray, this.bindingsIndexes[ groupName ].group, bindingsArray );
+			bindGroup = new BindGroup( groupName, bindings, this.bindingsIndexes[ groupName ].group );
 
 		}
 
@@ -653,7 +687,16 @@ class NodeBuilder {
 					const uniforms = bindings[ shaderStage ][ groupName ];
 
 					const groupUniforms = groups[ groupName ] || ( groups[ groupName ] = [] );
-					groupUniforms.push( ...uniforms );
+
+					for ( const uniform of uniforms ) {
+
+						if ( groupUniforms.includes( uniform ) === false ) {
+
+							groupUniforms.push( uniform );
+
+						}
+
+					}
 
 				}
 
@@ -738,9 +781,16 @@ class NodeBuilder {
 	 */
 	addSequentialNode( node ) {
 
-		if ( this.sequentialNodes.includes( node ) === false ) {
+		const updateBeforeType = node.getUpdateBeforeType();
+		const updateAfterType = node.getUpdateAfterType();
 
-			this.sequentialNodes.push( node );
+		if ( updateBeforeType !== NodeUpdateType.NONE || updateAfterType !== NodeUpdateType.NONE ) {
+
+			if ( this.sequentialNodes.includes( node ) === false ) {
+
+				this.sequentialNodes.push( node );
+
+			}
 
 		}
 
@@ -806,6 +856,17 @@ class NodeBuilder {
 
 		return ( texture.magFilter === LinearFilter || texture.magFilter === LinearMipmapNearestFilter || texture.magFilter === NearestMipmapLinearFilter || texture.magFilter === LinearMipmapLinearFilter ||
 			texture.minFilter === LinearFilter || texture.minFilter === LinearMipmapNearestFilter || texture.minFilter === NearestMipmapLinearFilter || texture.minFilter === LinearMipmapLinearFilter );
+
+	}
+
+	/**
+	 * Returns the maximum number of bytes available for uniform buffers.
+	 *
+	 * @return {number} The maximum number of bytes available for uniform buffers.
+	 */
+	getUniformBufferLimit() {
+
+		return 16384;
 
 	}
 
@@ -2916,9 +2977,9 @@ class NodeBuilder {
 
 			this.setBuildStage( buildStage );
 
-			if ( this.context.vertex && this.context.vertex.isNode ) {
+			if ( this.context.position && this.context.position.isNode ) {
 
-				this.flowNodeFromShaderStage( 'vertex', this.context.vertex );
+				this.flowNodeFromShaderStage( 'vertex', this.context.position );
 
 			}
 
@@ -3115,6 +3176,20 @@ class NodeBuilder {
 	getSignature() {
 
 		return `// Three.js r${ REVISION } - Node System\n`;
+
+	}
+
+	/**
+	 * Returns `true` if data from the previous frame are required. Relevant
+	 * when computing motion vectors with {@link VelocityNode}.
+	 *
+	 * @return {boolean} Whether data from the previous frame are required or not.
+	 */
+	needsPreviousData() {
+
+		const mrt = this.renderer.getMRT();
+
+		return ( mrt && mrt.has( 'velocity' ) ) || getDataFromObject( this.object ).useVelocity === true;
 
 	}
 

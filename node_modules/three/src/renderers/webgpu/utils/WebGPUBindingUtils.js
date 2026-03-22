@@ -3,9 +3,10 @@ import {
 	GPUSamplerBindingType, GPUShaderStage
 } from './WebGPUConstants.js';
 
-import { FloatType, IntType, UnsignedIntType } from '../../../constants.js';
+import { FloatType, IntType, UnsignedIntType, Compatibility } from '../../../constants.js';
 import { NodeAccess } from '../../../nodes/core/constants.js';
 import { isTypedArray, error } from '../../../utils.js';
+import { hashString } from '../../../nodes/core/NodeUtils.js';
 
 /**
  * Class representing a WebGPU bind group layout.
@@ -99,7 +100,7 @@ class WebGPUBindingUtils {
 		// if not, assing one
 
 		const entries = this._createLayoutEntries( bindGroup );
-		const bindGroupLayoutKey = JSON.stringify( entries );
+		const bindGroupLayoutKey = hashString( JSON.stringify( entries ) );
 
 		// try to find an existing layout in the cache
 
@@ -224,8 +225,6 @@ class WebGPUBindingUtils {
 
 			}
 
-			binding.clearUpdateRanges();
-
 		}
 
 	}
@@ -325,20 +324,9 @@ class WebGPUBindingUtils {
 
 			} else if ( binding.isStorageBuffer ) {
 
-				const bindingData = backend.get( binding );
+				const buffer = backend.get( binding.attribute ).buffer;
 
-				if ( bindingData.buffer === undefined ) {
-
-					const attribute = binding.attribute;
-					//const usage = GPUBufferUsage.STORAGE | GPUBufferUsage.VERTEX | /*GPUBufferUsage.COPY_SRC |*/ GPUBufferUsage.COPY_DST;
-
-					//backend.attributeUtils.createAttribute( attribute, usage ); // @TODO: Move it to universal renderer
-
-					bindingData.buffer = backend.get( attribute ).buffer;
-
-				}
-
-				entriesGPU.push( { binding: bindingPoint, resource: { buffer: bindingData.buffer } } );
+				entriesGPU.push( { binding: bindingPoint, resource: { buffer: buffer } } );
 
 			} else if ( binding.isSampledTexture ) {
 
@@ -582,12 +570,13 @@ class WebGPUBindingUtils {
 
 				if ( binding.texture.isDepthTexture ) {
 
-					if ( binding.texture.compareFunction !== null ) {
+					if ( binding.texture.compareFunction !== null && backend.hasCompatibility( Compatibility.TEXTURE_COMPARE ) ) {
 
 						sampler.type = GPUSamplerBindingType.Comparison;
 
-					} else if ( backend.compatibilityMode ) {
+					} else {
 
+						// Depth textures without compare must use non-filtering sampler
 						sampler.type = GPUSamplerBindingType.NonFiltering;
 
 					}

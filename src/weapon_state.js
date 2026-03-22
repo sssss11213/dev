@@ -43,7 +43,7 @@ let mixer = null;
 
 export function LoadViewmodel(shouldUpdateMesh,geometry){
   if (shouldUpdateMesh != true){
-  const testweapon = new weapon('models/merchant.glb',10,'Test Weapon')
+  const testweapon = new weapon('models/hud/terminal.glb',10,'Test Weapon')
   const testweapon2 = new weapon('models/exported/viewmodel_galil_F.glb',10,'Test Weapon number 2')
 
   loader.load( testweapon.sprite_sheet, function ( gltf ) {

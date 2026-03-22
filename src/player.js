@@ -9,6 +9,9 @@ import camera from '/src/camera';
 const radius = 0.4;
 const halfHeight = 0.9;
 
+const health = 100;
+const suit = 100;
+
 const body = world.createRigidBody(
   RAPIER.RigidBodyDesc.kinematicPositionBased()
     .setTranslation(0, 10, 0)
@@ -27,7 +30,7 @@ characterController.setApplyImpulsesToDynamicBodies(true);
 characterController.setMaxSlopeClimbAngle(55 * Math.PI / 180);
 characterController.setMinSlopeSlideAngle(35 * Math.PI / 180);
 
-characterController.enableAutostep(2.1, 0.2, true);
+characterController.enableAutostep(1, 0.2, true);
 characterController.enableSnapToGround(0.5);
 
 // capsule mesh
@@ -172,3 +175,5 @@ export function updatePlayer(deltaTime) {
 
 export { heldEnt };
 export { body };
+export { health };
+export { suit };

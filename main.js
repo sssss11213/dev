@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import camera from './src/camera';
-import { scene, renderer } from './src/render';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import world from './src/physics';
 import { RAPIER } from './src/physics';
@@ -11,8 +10,22 @@ import { body } from './src/player';
 import { wp_viewmodel } from './src/weapon_state';
 import { updateViewmodel } from './src/weapon_state';
 import { LoadViewmodel } from './src/weapon_state';
+import { spawn_bibi } from './src/hud.js';
+import { animate_hud } from './src/hud.js';
+import * as HUD from './src/hud.js';
+
+
 //import { testenemy } from './src/enemy';
 import { loadMap, loadMapFromURL, createTextureMaterialFactory, spawnEntities } from './src/mapParser.js';
+import { scene, renderer, initRenderPipeline, renderPipeline, hudCamera, hudScene } from './src/render';
+import { initPS1Background } from './src/pp';
+
+initRenderPipeline(camera);
+
+spawn_bibi()
+
+// after scene is created:
+//initPS1Background(scene);
 
 const getMaterial = createTextureMaterialFactory('./maps/textures/', 'png');
 
@@ -281,7 +294,7 @@ spotLight.shadow.radius = 5;
 
 scene.add(spotLight)
 const helper = new THREE.SpotLightHelper(spotLight)
-scene.add(helper)
+//scene.add(helper)
 
 
 //scene.add(dir_light);
@@ -366,28 +379,28 @@ function handleRaycast() {
     //mousePlane.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
   }
 }
-/*
+
 const loader2 = new GLTFLoader();
 
-loader2.load( 'models/merchant.glb', function ( gltf ) {
+loader2.load( 'models/hud/terminal.glb', function ( gltf ) {
 
   // 1. Grab the model from the gltf object
   const mdl = gltf.scene; 
   
   // 2. Set the scale correctly
-  mdl.scale.set(8,8,8);
-  mdl.position.set(0,-5,0)
+  mdl.scale.set(0.3,0.3,0.3);
+  mdl.position.set(0,2.5,-5)
 
   // 3. Add it to the scene
-  //scene.add( mdl );
+  scene.add( mdl );
 
   console.log("Model loaded successfully!");
 
 }, undefined, function ( error ) {
   console.error( "An error happened:", error );
 } );
-*/
 
+/*
 const loader3 = new THREE.TextureLoader();
 const texture2 = loader.load(
   'https://threejs.org/manual/examples/resources/images/equirectangularmaps/tears_of_steel_bridge_2k.jpg',
@@ -398,6 +411,18 @@ const texture2 = loader.load(
     scene.background = texture2;
 
   } );
+*/
+
+const cubeLoader = new THREE.CubeTextureLoader();
+cubeLoader.setPath('https://stemkoski.github.io/Three.js/images/');
+scene.background = cubeLoader.load([
+  'dawnmountain-xpos.png',
+  'dawnmountain-xneg.png',
+  'dawnmountain-ypos.png',
+  'dawnmountain-yneg.png',
+  'dawnmountain-zpos.png',
+  'dawnmountain-zneg.png',
+]);
 
 
 //rapier phys simulation speed
@@ -420,6 +445,8 @@ function animate() {
 
   updateViewmodel();
 
+  animate_hud(clock.getDelta());
+
   //Loop thru phys ents and update them
   var arrayLength = phys_ents.length;
   for (var i = 0; i < arrayLength; i++) {
@@ -428,6 +455,11 @@ function animate() {
 
   //THREE.log(clock.getDelta())
 
+  renderer.autoClear = true;
   renderer.render( scene, camera );
+
+  renderer.autoClear = false;              // don't wipe the frame
+  renderer.render(hudScene, hudCamera);    // draw HUD on top
+  //renderPipeline.render();
 }
 renderer.setAnimationLoop( animate );

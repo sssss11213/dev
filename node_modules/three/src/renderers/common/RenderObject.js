@@ -511,8 +511,7 @@ class RenderObject {
 
 				// geometry attribute
 				attribute = geometry.getAttribute( nodeAttribute.name );
-
-				attributesId[ nodeAttribute.name ] = attribute.version;
+				attributesId[ nodeAttribute.name ] = attribute.id;
 
 			}
 
@@ -882,7 +881,7 @@ class RenderObject {
 
 		}
 
-		cacheKey = hash( cacheKey, this.camera.id, this.renderer.contextNode.id, this.renderer.contextNode.version );
+		cacheKey = hash( cacheKey, this.renderer.contextNode.id, this.renderer.contextNode.version );
 
 		return cacheKey;
 

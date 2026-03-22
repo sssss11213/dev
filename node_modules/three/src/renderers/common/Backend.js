@@ -679,6 +679,27 @@ class Backend {
 	}
 
 	/**
+	 * Checks if the backend has the given compatibility.
+	 *
+	 * @abstract
+	 * @param {string} name - The compatibility.
+	 * @return {boolean} Whether the backend has the given compatibility or not.
+	 */
+	hasCompatibility( /*name*/ ) {
+
+		return false;
+
+	}
+
+	/**
+	 * Initializes the render target defined in the given render context.
+	 *
+	 * @abstract
+	 * @param {RenderContext} renderContext - The render context.
+	 */
+	initRenderTarget( /*renderContext*/ ) {}
+
+	/**
 	 * Sets a dictionary for the given object into the
 	 * internal data structure.
 	 *
