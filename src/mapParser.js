@@ -25,12 +25,6 @@ const QUAKE_SCALE = 1 / 32;
 /** Tolerance for half-space membership and vertex deduplication. */
 const EPSILON = 0.01;
 
-/**
- * How many Quake units fit in one texture tile.
- * 128 = one tile covers 128 qu. Lower = more tiling, higher = more stretching.
- */
-const TEX_SCALE = 128;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // TOKENIZER
 // ─────────────────────────────────────────────────────────────────────────────
@@ -164,21 +158,59 @@ class MapParser {
 
     const texture = this.next().val;
 
+    let uvInfo;
+
     if (this.peek()?.val === '[') {
-      // Valve 220: [ ux uy uz xOff ] [ vx vy vz yOff ] rot xSc ySc
-      this.next();
-      this.num(); this.num(); this.num(); this.num();
+      // ── Valve 220 ──────────────────────────────────────────────────────────
+      // [ uAxis.x uAxis.y uAxis.z xOffset ] [ vAxis.x vAxis.y vAxis.z yOffset ]
+      // rotation xScale yScale
+      this.next(); // consume '['
+      const uAxisX = this.num();
+      const uAxisY = this.num();
+      const uAxisZ = this.num();
+      const xOffset = this.num();
       this.expect(']');
-      this.next();
-      this.num(); this.num(); this.num(); this.num();
+
+      this.next(); // consume '['
+      const vAxisX = this.num();
+      const vAxisY = this.num();
+      const vAxisZ = this.num();
+      const yOffset = this.num();
       this.expect(']');
-      this.num(); this.num(); this.num();
+
+      const rotation = this.num(); // stored but UV axes already encode it
+      const xScale   = this.num();
+      const yScale   = this.num();
+
+      uvInfo = {
+        format: 'valve220',
+        uAxis:   [uAxisX, uAxisY, uAxisZ],
+        vAxis:   [vAxisX, vAxisY, vAxisZ],
+        xOffset,
+        yOffset,
+        xScale:  xScale  || 1,
+        yScale:  yScale  || 1,
+      };
     } else {
-      // Standard: xOff yOff rot xSc ySc
-      this.num(); this.num(); this.num(); this.num(); this.num();
+      // ── Standard (Quake 1) ─────────────────────────────────────────────────
+      // xOffset yOffset rotation xScale yScale
+      const xOffset  = this.num();
+      const yOffset  = this.num();
+      const rotation = this.num();
+      const xScale   = this.num();
+      const yScale   = this.num();
+
+      uvInfo = {
+        format:   'standard',
+        xOffset,
+        yOffset,
+        rotation,
+        xScale:   xScale  || 1,
+        yScale:   yScale  || 1,
+      };
     }
 
-    return buildPlane(p0, p1, p2, texture);
+    return buildPlane(p0, p1, p2, texture, uvInfo);
   }
 }
 
@@ -186,28 +218,94 @@ class MapParser {
 // PLANE MATH
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildPlane(p0, p1, p2, texture) {
+function buildPlane(p0, p1, p2, texture, uvInfo) {
   const a = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
   const b = [p2[0] - p0[0], p2[1] - p0[1], p2[2] - p0[2]];
 
-  // cross(a, b) — Quake CW winding gives an inward-pointing normal
   const nx = a[1] * b[2] - a[2] * b[1];
   const ny = a[2] * b[0] - a[0] * b[2];
   const nz = a[0] * b[1] - a[1] * b[0];
   const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
 
   if (len < 1e-10) {
-    return { normal: [0, 1, 0], outNormal: [0, -1, 0], d: 0, texture };
+    return { normal: [0, 1, 0], outNormal: [0, -1, 0], d: 0, texture, uvInfo };
   }
 
-  // Inward normal — used for CSG half-space test: dot >= d - ε means inside solid
   const normal = [nx / len, ny / len, nz / len];
   const d = normal[0] * p0[0] + normal[1] * p0[1] + normal[2] * p0[2];
-
-  // Outward normal — used only for Three.js face normals
   const outNormal = [-normal[0], -normal[1], -normal[2]];
 
-  return { normal, outNormal, d, texture };
+  return { normal, outNormal, d, texture, uvInfo };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UV COMPUTATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Compute UV coordinates for a vertex in Quake space, respecting the plane's
+ * texture projection data (Valve 220 or standard Quake 1).
+ *
+ * All coordinates are in Quake units; the caller handles Three.js conversion.
+ *
+ * @param {number[]} v       - Vertex position in Quake space [x, y, z].
+ * @param {object}   plane   - Plane with normal and uvInfo.
+ * @param {number}   texW    - Texture pixel width  (default 64, used for offset normalisation).
+ * @param {number}   texH    - Texture pixel height (default 64).
+ * @returns {[number, number]} [u, v]
+ */
+function computeUV(v, plane, texW = 64, texH = 64) {
+  const { uvInfo, normal } = plane;
+
+  if (uvInfo.format === 'valve220') {
+    // Valve 220 — explicit texture-space axes stored in the map file.
+    // u = dot(vertex, uAxis) / (texW * xScale) + xOffset / texW
+    // v = dot(vertex, vAxis) / (texH * yScale) + yOffset / texH
+    const { uAxis, vAxis, xOffset, yOffset, xScale, yScale } = uvInfo;
+
+    const u = (v[0] * uAxis[0] + v[1] * uAxis[1] + v[2] * uAxis[2]) / (texW * xScale)
+            + xOffset / texW;
+    const vCoord = (v[0] * vAxis[0] + v[1] * vAxis[1] + v[2] * vAxis[2]) / (texH * yScale)
+            + yOffset / texH;
+
+    return [u, vCoord];
+  } else {
+    // Standard Quake 1 — axis-aligned projection with rotation & scale.
+    // Step 1: pick the best-fit projection axis from the face normal.
+    const { xOffset, yOffset, rotation, xScale, yScale } = uvInfo;
+
+    const [anx, any, anz] = normal.map(Math.abs);
+    let s, t; // raw projected coords in Quake space
+
+    if (anz >= anx && anz >= any) {
+      // Floor / ceiling (dominant Z) → project onto XY
+      s =  v[0];
+      t =  v[1];
+    } else if (anx >= any && anx >= anz) {
+      // X-facing wall → project onto YZ
+      s =  v[1];
+      t =  v[2];
+    } else {
+      // Y-facing wall → project onto XZ
+      s =  v[0];
+      t =  v[2];
+    }
+
+    // Step 2: apply rotation in the projection plane
+    const rad = rotation * (Math.PI / 180);
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const rs =  s * cos - t * sin;
+    const rt =  s * sin + t * cos;
+
+    // Step 3: scale and offset
+    //   u = rs / (texW * xScale) + xOffset / texW
+    //   v = rt / (texH * yScale) + yOffset / texH
+    const u      = rs / (texW * xScale) + xOffset / texW;
+    const vCoord = rt / (texH * yScale) + yOffset / texH;
+
+    return [u, vCoord];
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -262,7 +360,6 @@ function buildBrushMesh(planes) {
   const triangles = [];
 
   for (let i = 0; i < planes.length; i++) {
-    // Deduplicate vertices on this face
     const raw = faceVerts[i];
     const unique = [];
     for (const p of raw) {
@@ -275,13 +372,11 @@ function buildBrushMesh(planes) {
     }
     if (unique.length < 3) continue;
 
-    // Face centroid
     const cx = unique.reduce((s, p) => s + p[0], 0) / unique.length;
     const cy = unique.reduce((s, p) => s + p[1], 0) / unique.length;
     const cz = unique.reduce((s, p) => s + p[2], 0) / unique.length;
 
-    // Tangent frame for angle sort — built from inward normal
-    const n    = planes[i].normal;
+    const n  = planes[i].normal;
     const outN = planes[i].outNormal;
     let tx = 1, ty = 0, tz = 0;
     if (Math.abs(n[0]) > 0.9) { tx = 0; ty = 1; tz = 0; }
@@ -305,15 +400,12 @@ function buildBrushMesh(planes) {
     const order = unique.map((_, idx) => idx).sort((a, b) => angles[a] - angles[b]);
     const poly  = order.map(idx => unique[idx]);
 
-    // Fan-triangulate. Check the first triangle's cross product against outN
-    // and pick winding accordingly — this handles all normal orientations correctly.
-    let winding = 1; // 1 = [0, j, j+1], -1 = [0, j+1, j]
+    let winding = 1;
     if (poly.length >= 3) {
       const v0 = poly[0], v1 = poly[1], v2 = poly[2];
       const ax = v1[0]-v0[0], ay = v1[1]-v0[1], az = v1[2]-v0[2];
       const bx = v2[0]-v0[0], by = v2[1]-v0[1], bz = v2[2]-v0[2];
       const cx = ay*bz - az*by, cy = az*bx - ax*bz, cz = ax*by - ay*bx;
-      // If cross product opposes outN, reverse winding
       if (cx*outN[0] + cy*outN[1] + cz*outN[2] < 0) winding = -1;
     }
 
@@ -322,7 +414,8 @@ function buildBrushMesh(planes) {
         verts: winding === 1
           ? [poly[0], poly[j],     poly[j + 1]]
           : [poly[0], poly[j + 1], poly[j]],
-        normal: outN,
+        normal:  outN,
+        planeIndex: i,
       });
     }
   }
@@ -348,7 +441,6 @@ function quakeToThree(v) {
 }
 
 function quakeNormalToThree(n) {
-  // Same axis remap as quakeToThree, no scaling
   return [n[0], n[2], -n[1]];
 }
 
@@ -356,7 +448,17 @@ function quakeNormalToThree(n) {
 // THREE.JS GEOMETRY BUILDER
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildThreeGeometry(triangles) {
+/**
+ * Build a BufferGeometry from a list of triangles.
+ *
+ * @param {Array}   triangles    - Output of buildBrushMesh, filtered to one texture.
+ * @param {Array}   planes       - Full plane array for the brush (needed for uvInfo).
+ * @param {object}  [texSize]    - { w, h } texture dimensions in pixels; defaults to 64×64.
+ *                                 Pass real dimensions from your texture atlas for pixel-perfect
+ *                                 alignment. The UV formula normalises by texW / texH so that
+ *                                 u=1 always corresponds to one full texture tile width.
+ */
+function buildThreeGeometry(triangles, planes, texSize = { w: 64, h: 64 }) {
   const positions = [];
   const normals   = [];
   const uvs       = [];
@@ -364,31 +466,18 @@ function buildThreeGeometry(triangles) {
   for (const tri of triangles) {
     const n3 = quakeNormalToThree(tri.normal);
 
-    // Dominant axis of outward normal in Quake space determines UV projection plane.
-    // UVs are computed from raw Quake-unit coords so tiling is independent of QUAKE_SCALE.
-    const [anx, any, anz] = tri.normal.map(Math.abs);
+    // Retrieve the originating plane so we can use its uvInfo.
+    const plane = planes[tri.planeIndex];
 
     for (const v of tri.verts) {
       const tv = quakeToThree(v);
       positions.push(tv.x, tv.y, tv.z);
       normals.push(n3[0], n3[1], n3[2]);
 
-      let u, w;
-      if (anz >= anx && anz >= any) {
-        // Floor / ceiling — project onto Quake XY
-        u =  v[0] / TEX_SCALE;
-        w =  v[1] / TEX_SCALE;
-      } else if (anx >= any && anx >= anz) {
-        // X-facing wall — project onto Quake YZ
-        u =  v[1] / TEX_SCALE;
-        w =  v[2] / TEX_SCALE;
-      } else {
-        // Y-facing wall — project onto Quake XZ
-        u =  v[0] / TEX_SCALE;
-        w =  v[2] / TEX_SCALE;
-      }
-
-      uvs.push(u, w);
+      // Compute UVs in Quake coordinate space (before axis-remap / scale).
+      // This is intentional: the Quake UV axes are defined in Quake space.
+      const [u, vc] = computeUV(v, plane, texSize.w, texSize.h);
+      uvs.push(u, vc);
     }
   }
 
@@ -438,10 +527,6 @@ function buildRapierCollider(triangles, rapierWorld, RAPIER) {
 
 const _matCache = new Map();
 
-/**
- * Default: hashed colour per texture name.
- * Pass createTextureMaterialFactory() to loadMap to use real textures instead.
- */
 function getDefaultMaterial(textureName) {
   if (!_matCache.has(textureName)) {
     let h = 0;
@@ -464,11 +549,12 @@ function getDefaultMaterial(textureName) {
  *
  * @param {string} mapSource
  * @param {{
- *   scene?: THREE.Scene,
- *   world?: object,
- *   RAPIER?: object,
- *   getMaterial?: (name: string) => THREE.Material,
- *   castShadow?: boolean,
+ *   scene?        : THREE.Scene,
+ *   world?        : object,
+ *   RAPIER?       : object,
+ *   getMaterial?  : (name: string) => THREE.Material,
+ *   getTexSize?   : (name: string) => { w: number, h: number },
+ *   castShadow?   : boolean,
  *   receiveShadow?: boolean,
  * }} [options]
  * @returns {{ entities, meshes, colliders, pointEntities }}
@@ -479,6 +565,11 @@ export function loadMap(mapSource, options = {}) {
     world:       rapierWorld = world,
     RAPIER:      rapier      = RAPIER,
     getMaterial               = getDefaultMaterial,
+    // Optional: supply real texture pixel dimensions for accurate UV tiling.
+    // Signature: (textureName: string) => { w: number, h: number }
+    // Automatically picked up from getMaterial.getTexSize if not supplied explicitly
+    // (createTextureMaterialFactory attaches it there for backwards compat).
+    getTexSize                = getMaterial?.getTexSize ?? (() => ({ w: 64, h: 64 })),
     castShadow                = true,
     receiveShadow             = true,
   } = options;
@@ -512,27 +603,20 @@ export function loadMap(mapSource, options = {}) {
       }
       if (triangles.length === 0) continue;
 
-      // Group triangles by texture name → one Mesh per texture per brush
+      // Group triangles by texture name → one Mesh per texture per brush.
+      // Match via planeIndex (exact) rather than normal comparison (fragile).
       const byTex = new Map();
       for (const tri of triangles) {
-        let texName = '__TB_empty';
-        for (const plane of planes) {
-          const n = plane.outNormal, tn = tri.normal;
-          if (Math.abs(n[0] - tn[0]) < 0.01 &&
-              Math.abs(n[1] - tn[1]) < 0.01 &&
-              Math.abs(n[2] - tn[2]) < 0.01) {
-            texName = plane.texture;
-            break;
-          }
-        }
+        const texName = planes[tri.planeIndex]?.texture ?? '__TB_empty';
         if (!byTex.has(texName)) byTex.set(texName, []);
         byTex.get(texName).push(tri);
       }
 
       for (const [texName, tris] of byTex) {
-        const geo  = buildThreeGeometry(tris);
-        const mat  = getMaterial(texName);
-        const mesh = new THREE.Mesh(geo, mat);
+        const texSize = getTexSize(texName);
+        const geo     = buildThreeGeometry(tris, planes, texSize);
+        const mat     = getMaterial(texName);
+        const mesh    = new THREE.Mesh(geo, mat);
 
         mesh.castShadow    = castShadow;
         mesh.receiveShadow = receiveShadow;
@@ -587,15 +671,21 @@ export async function loadMapFromURL(url, options = {}) {
  *
  * Falls back to a hashed colour if the file is not found.
  *
+ * Backwards-compatible: returns the getMaterial function directly.
+ * Real texture pixel dimensions are available via getMaterial.getTexSize(name),
+ * and loadMap will use them automatically when you pass getMaterial as an option.
+ *
  * @param {string} baseURL    - Base path, trailing slash required.
  * @param {string} [ext='png']
+ * @returns {Function} getMaterial — also has a .getTexSize(name) method.
  */
 export function createTextureMaterialFactory(baseURL, ext = 'png') {
-  const loader = new THREE.TextureLoader();
-  const cache  = new Map();
+  const loader   = new THREE.TextureLoader();
+  const matCache = new Map();
+  const sizeCache = new Map();
 
-  return function getMaterial(textureName) {
-    if (cache.has(textureName)) return cache.get(textureName);
+  function getMaterial(textureName) {
+    if (matCache.has(textureName)) return matCache.get(textureName);
 
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.9, metalness: 0.05 });
 
@@ -605,6 +695,13 @@ export function createTextureMaterialFactory(baseURL, ext = 'png') {
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
         mat.map = tex;
         mat.needsUpdate = true;
+
+        // Cache real pixel dimensions so getTexSize can return them.
+        // image.naturalWidth/naturalHeight are available once the texture loads.
+        const img = tex.image;
+        if (img && img.naturalWidth) {
+          sizeCache.set(textureName, { w: img.naturalWidth, h: img.naturalHeight });
+        }
       },
       undefined,
       () => {
@@ -615,9 +712,23 @@ export function createTextureMaterialFactory(baseURL, ext = 'png') {
       }
     );
 
-    cache.set(textureName, mat);
+    matCache.set(textureName, mat);
     return mat;
-  };
+  }
+
+  /**
+   * Return the pixel dimensions of a texture, if already loaded.
+   * Falls back to 64×64 (standard Quake WAD tile size) before the image loads.
+   * Pre-warm by calling getMaterial for all textures before loadMap if needed.
+   */
+  function getTexSize(textureName) {
+    return sizeCache.get(textureName) ?? { w: 64, h: 64 };
+  }
+
+  // Attach getTexSize as a property so loadMap can pick it up automatically,
+  // while the return value remains a plain callable function for backwards compat.
+  getMaterial.getTexSize = getTexSize;
+  return getMaterial;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -659,4 +770,4 @@ export function spawnEntities(pointEntities, handlers) {
 }
 
 // Raw helpers for advanced use
-export { buildBrushMesh, buildPlane, quakeToThree, tokenize };
+export { buildBrushMesh, buildPlane, computeUV, quakeToThree, tokenize };

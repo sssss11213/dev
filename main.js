@@ -35,6 +35,13 @@ const result = loadMap(mapSource, { getMaterial });
 
 const gltf_loader = new GLTFLoader();
 
+{
+  const color = new THREE.Color(0.3,0.33,0.33);
+  const near = 10;
+  const far = 40;
+  scene.fog = new THREE.Fog(color, near, far);
+}
+
 spawnEntities(result.pointEntities, {
 
   // Player spawn — set camera position
@@ -422,14 +429,14 @@ const texture2 = loader.load(
 */
 
 const cubeLoader = new THREE.CubeTextureLoader();
-cubeLoader.setPath('https://stemkoski.github.io/Three.js/images/');
+cubeLoader.setPath('textures/skyboxes/');
 scene.background = cubeLoader.load([
-  'dawnmountain-xpos.png',
-  'dawnmountain-xneg.png',
-  'dawnmountain-ypos.png',
-  'dawnmountain-yneg.png',
-  'dawnmountain-zpos.png',
-  'dawnmountain-zneg.png',
+  'sky_wasteland02rt.png',  // xpos
+  'sky_wasteland02lf.png',  // xneg
+  'sky_wasteland02up.png',  // ypos
+  'sky_wasteland02dn.png',  // yneg
+  'sky_wasteland02bk.png',  // zpos  ← swapped
+  'sky_wasteland02ft.png',  // zneg  ← swapped
 ]);
 
 

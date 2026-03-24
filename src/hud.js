@@ -47,8 +47,8 @@ async function initHUD() {
     crosshair = await img_rect(
     'textures/hud/crosshair.png',
     new THREE.Vector3(960, 540, 0),
-    188,
-    128
+    256 / 2,
+    256 / 2
     );
 
     heart.material.color.setRGB(0, 35, 0.1);

@@ -79,8 +79,8 @@ function create_raycast() {
     heldEnt = scene.getObjectByName(intersects[0].object.name);
 
     // Make a new material since the original one is shared between all cubes
-    heldEnt.material = new THREE.MeshStandardMaterial({ color: 0x00ff00, wireframe: false, transparent: true });
-    heldEnt.material.color.set(new THREE.Color(Math.random(), Math.random(), Math.random()));
+    //heldEnt.material = new THREE.MeshStandardMaterial({ color: 0x00ff00, wireframe: false, transparent: true });
+    //heldEnt.material.color.set(new THREE.Color(Math.random(), Math.random(), Math.random()));
     }
   } else {
     heldEnt = null;
