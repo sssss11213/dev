@@ -2,7 +2,6 @@
   "dependencies": {
     "@dimforge/rapier3d": "0.19.3",
     "three": "^0.183.2",
-    "three-spritemixer": "github:felixmariotto/three-SpriteMixer",
     "troika-three-text": "^0.52.4"
   },
   "devDependencies": {
