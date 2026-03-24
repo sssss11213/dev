@@ -33,6 +33,8 @@ const res = await fetch('./maps/test.map');
 const mapSource = await res.text();
 const result = loadMap(mapSource, { getMaterial });
 
+const gltf_loader = new GLTFLoader();
+
 spawnEntities(result.pointEntities, {
 
   // Player spawn — set camera position
@@ -86,6 +88,29 @@ spawnEntities(result.pointEntities, {
     mesh.userData.amount    = parseInt(props.amount ?? '25');
 
     return mesh;
+  },
+
+  item_prop(props,origin) {
+
+    gltf_loader.load( 'models/hud/terminal.glb', function ( gltf ) {
+
+      // 1. Grab the model from the gltf object
+      const mdl = gltf.scene; 
+      
+      // 2. Set the scale correctly
+      mdl.scale.set(0.3,0.3,0.3);
+      mdl.position.copy(origin);
+
+      // 3. Add it to the scene
+      scene.add( mdl );
+
+      console.log("Model loaded successfully!");
+
+      return mdl;
+
+    }, undefined, function ( error ) {
+      console.error( "An error happened:", error );
+    } );
   },
 
 });
@@ -190,6 +215,9 @@ function create_cube(mousePos) {
     //.setLinearDamping(5)
     //.setAngularDamping(5);
   let rigid = world.createRigidBody(rigidBodyDesc);
+
+  cube.userData.rigidBody = rigid;
+
   let points = geometry.attributes.position.array;
   let colliderDesc = RAPIER.ColliderDesc.convexHull(points).setDensity(density);
   world.createCollider(colliderDesc, rigid)
@@ -379,26 +407,6 @@ function handleRaycast() {
     //mousePlane.position.set(intersects[0].point.x, intersects[0].point.y, intersects[0].point.z);
   }
 }
-
-const loader2 = new GLTFLoader();
-
-loader2.load( 'models/hud/terminal.glb', function ( gltf ) {
-
-  // 1. Grab the model from the gltf object
-  const mdl = gltf.scene; 
-  
-  // 2. Set the scale correctly
-  mdl.scale.set(0.3,0.3,0.3);
-  mdl.position.set(0,2.5,-5)
-
-  // 3. Add it to the scene
-  scene.add( mdl );
-
-  console.log("Model loaded successfully!");
-
-}, undefined, function ( error ) {
-  console.error( "An error happened:", error );
-} );
 
 /*
 const loader3 = new THREE.TextureLoader();

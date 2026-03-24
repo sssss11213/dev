@@ -17,6 +17,8 @@ let bibi = null;
 let heart = null;
 let crosshair = null;
 
+var spriteMixer = SpriteMixer();
+
 const loader = new THREE.TextureLoader();
 
 function img_rect(texture, pos, w, h) {
@@ -134,10 +136,37 @@ export function animate_hud(dt) {
 
 initHUD();
 
-const health_filled = img_rect('textures/hud/liquid.png', new THREE.Vector3((w / 2) + 780,846,0),210,48)
+//const health_filled = img_rect('textures/hud/liquid.png', new THREE.Vector3((w / 2) + 780,846,0),210,48)
 
 const display = img_rect('textures/hud/display.png', new THREE.Vector3(162, 228, -1), 346, 476);
 
-const health_sprite = img_rect('textures/hud/syringe.png', new THREE.Vector3((w / 2) + 780,980,0))
-const suit_sprite = img_rect('textures/hud/syringe.png', new THREE.Vector3((w / 2) + 780,850,0))
+const profile = img_rect(
+    'textures/hud/profile.png',
+    new THREE.Vector3(
+        1920 - 245,    // right edge - half width - margin
+        1080 - 160,    // top edge  - half height - margin
+        -1                  // z = in front
+    ),
+    512, 512
+);
+
+const health_sprite = img_rect(
+    'textures/hud/syringe.png',
+    new THREE.Vector3(
+        1920 - 160,    // right edge - half width - margin
+        1080 - 400,    // top edge  - half height - margin
+        -1                  // z = in front
+    ),
+    256 * 1.2, 256 * 1.2
+);
+
+const suit_sprite = img_rect(
+    'textures/hud/syringe.png',
+    new THREE.Vector3(
+        1920 - 160,    // right edge - half width - margin
+        1080 - 460,    // top edge  - half height - margin
+        -1                  // z = in front
+    ),
+    256 * 1.2, 256 * 1.2
+);
 
