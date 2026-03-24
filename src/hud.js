@@ -8,6 +8,7 @@ import { suit } from './player';
 
 import { hudScene, hudCamera } from '/src/render';
 import { Text } from 'troika-three-text';
+
 const w = window.innerWidth
 const h = window.innerHeight
 
@@ -16,8 +17,6 @@ let bibi = null;
 
 let heart = null;
 let crosshair = null;
-
-var spriteMixer = SpriteMixer();
 
 const loader = new THREE.TextureLoader();
 

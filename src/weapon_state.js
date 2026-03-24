@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { scene } from '/src/render';
 import camera from '/src/camera';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { SpriteMixer } from './spritemixer.js';
 
 let wp_viewmodel = null;
 let lastdigitinput = null;
@@ -88,17 +89,6 @@ export function LoadViewmodel(shouldUpdateMesh, geometry) {
       }
       mixer.clipAction(clip).play();
     });
-  }
-}
-
-// ─── Viewmodel update ─────────────────────────────────────────────────────────
-export function updateViewmodel() {
-  if (wp_viewmodel != null) {
-    wp_viewmodel.position.set(camera.position.x, camera.position.y, camera.position.z);
-    wp_viewmodel.quaternion.copy(camera.quaternion);
-  }
-  if (mixer !== null && mixer !== undefined) {
-    mixer.update(clock.getDelta());
   }
 }
 
@@ -231,3 +221,44 @@ export function getAmmo() {
 export function getIsReloading() { return isReloading; }
 
 export { wp_viewmodel, updateViewmodel as default, currentSlot };
+
+
+
+const sprite_mixer = new SpriteMixer();
+
+// When loading a weapon spritesheet:
+const texture = new THREE.TextureLoader().load('textures/weapons/pistol_sheet.png');
+const sprite  = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture }));
+scene.add(sprite);
+
+const anim = sprite_mixer.createAnimation(sprite, texture, 4, 4, 14, 12);
+anim.addState('idle',   0,  1,  true)   // loops
+anim.addState('shoot',  2,  5,  false)  // plays once
+anim.addState('reload', 6, 13,  false)  // plays once
+anim.setState('idle');
+
+// Firing:
+anim.trigger('shoot', 'idle');  // plays shoot, returns to idle
+
+// Reloading:
+anim.trigger('reload', 'idle');
+anim.onFinish = (state) => {
+  if (state === 'reload') currentWeapon.ammo = currentWeapon.maxammo;
+};
+
+
+
+// ─── Viewmodel update ─────────────────────────────────────────────────────────
+export function updateViewmodel() {
+  if (wp_viewmodel != null) {
+    wp_viewmodel.position.set(camera.position.x, camera.position.y, camera.position.z);
+    wp_viewmodel.quaternion.copy(camera.quaternion);
+  }
+  if (mixer !== null && mixer !== undefined) {
+    mixer.update(clock.getDelta());
+  }
+
+  sprite_mixer.update(clock.getDelta());
+}
+
+
